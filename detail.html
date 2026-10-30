@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>商品详情 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page no-tab" style="padding-bottom:92px">
+
+    <header class="navbar">
+      <button class="nav-back" onclick="history.back()">←</button>
+      <div class="nav-title" style="font-size:16px">宝贝详情</div>
+    </header>
+
+    <div class="gallery">
+      <div class="gal-scroll" id="galScroll"></div>
+      <div class="gal-dots" id="galDots"></div>
+    </div>
+
+    <div class="d-price-card">
+      <div class="d-price-row" id="dPrice"></div>
+      <div class="d-tags" id="dTags"></div>
+    </div>
+    <div class="d-name" id="dName"></div>
+    <div class="d-point" id="dPoint"></div>
+
+    <div class="d-section" id="skuSec">
+      <div class="d-sec-title">🧩 选一选</div>
+      <div id="skuGroups"></div>
+      <div class="sku-group" style="display:flex;align-items:center;justify-content:space-between">
+        <span class="sku-label" style="margin:0">购买数量</span>
+        <div class="stepper">
+          <button id="qtyMinus">−</button><span class="st-num" id="qtyNum">1</span><button id="qtyPlus">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-section">
+      <div class="d-sec-title">🛡️ 安全与服务</div>
+      <div class="svc-row">
+        <span class="svc-item"><span class="s-ico">✅</span>3C认证</span>
+        <span class="svc-item"><span class="s-ico">🌿</span>材质安全</span>
+        <span class="svc-item"><span class="s-ico">🚚</span>满48包邮</span>
+        <span class="svc-item"><span class="s-ico">↩️</span>7天无理由</span>
+        <span class="svc-item"><span class="s-ico">💝</span>送运费险</span>
+        <span class="svc-item"><span class="s-ico">🔧</span>摔坏免费换新</span>
+      </div>
+    </div>
+
+    <div class="d-section">
+      <div class="d-sec-title">📦 配送</div>
+      <div class="cell"><span class="c-label">送至</span><span class="c-val">上海市 · 徐汇区 <span class="c-arrow">›</span></span></div>
+      <div class="cell"><span class="c-label">运费</span><span class="c-val c-green">满48包邮，否则运费8元</span></div>
+      <div class="cell"><span class="c-label">发货</span><span class="c-val">付款后48小时内 · 按付款顺序发货</span></div>
+    </div>
+
+    <div class="d-section">
+      <div class="d-sec-title">💬 宝爸宝妈的评价</div>
+      <div class="rv-sum" id="rvSum"></div>
+      <div class="rv-tags" id="rvTags" style="margin-bottom:10px"></div>
+      <div id="rvList"></div>
+    </div>
+
+    <div class="d-section">
+      <div class="d-sec-title">📋 规格参数</div>
+      <table class="param-table" id="paramTable"></table>
+    </div>
+
+    <div class="d-section">
+      <div class="d-sec-title">🎨 图文详情</div>
+      <div class="d-desc" id="dDesc"></div>
+      <img class="d-desc-img" id="dDescImg" alt="商品大图">
+    </div>
+
+    <div class="floor" style="margin-top:16px">
+      <div class="floor-head"><span class="floor-title">👀 看了又看</span></div>
+      <div class="rec-scroll" style="display:flex;gap:12px;overflow-x:auto;padding:2px 2px 6px" id="recBox"></div>
+    </div>
+
+    <!-- 底部操作栏：客服/收藏/购物车 + 加购 + 立即购买（照抄行业标准形态） -->
+    <div class="bottom-bar">
+      <a class="bb-icon" href="member.html"><span class="bi">🎧</span>客服</a>
+      <button class="bb-icon" id="favBtn"><span class="bi" id="favIco">🤍</span>收藏</button>
+      <a class="bb-icon" href="cart.html"><span class="bi">🛒</span><span data-cart-badge class="tab-badge" style="position:absolute;top:-4px;right:6px"></span>购物车</a>
+      <button class="bb-btn bb-cart" id="addCartBtn">加入购物车</button>
+      <button class="bb-btn bb-buy" id="buyNowBtn">立即购买</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+const p = findProduct(qs('pid')) || DB.products[0];
+document.title = p.name + ' · 陶元的玩具商城';
+
+/* 头图轮播：主图 + 2 张变体（换 prompt 角度词，模拟多图） */
+const angles = ['', 'close up detail view of', 'baby hands playing with'];
+document.getElementById('galScroll').innerHTML = angles.map((a, i) =>
+  `<img src="${a ? toyImg(a + ' ' + p.img.split('prompt=')[1].split('&')[0], 'square') : p.img}" alt="${p.name} ${i + 1}">`).join('');
+document.getElementById('galDots').innerHTML = angles.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+bindDots(document.getElementById('galScroll'), document.getElementById('galDots'));
+
+/* 价格与促销标签 */
+document.getElementById('dPrice').innerHTML =
+  priceHtml(p, true) +
+  (p.stock > 0 ? `<span style="font-size:10.5px;color:var(--ink-3)">库存${p.stock}件</span>` : `<span style="font-size:10.5px;color:var(--danger)">补货中</span>`) +
+  `<span class="d-earned">🧸 会员购返${Math.floor(p.price * 0.1)}积分</span>`;
+document.getElementById('dTags').innerHTML = (p.tags || []).map(tagHtml).join('');
+document.getElementById('dName').textContent = p.name;
+document.getElementById('dPoint').textContent = '✨ ' + p.point;
+
+/* SKU 面板：状态机，每组一个选中值 */
+const skuState = (p.opts || []).map(o => o.values[0]);
+function skuText() { return skuState.length ? skuState.join('/') : '默认'; }
+function renderSku() {
+  document.getElementById('skuGroups').innerHTML = (p.opts || []).map((o, gi) => `
+    <div class="sku-group">
+      <div class="sku-label">${o.label}</div>
+      <div class="sku-opts">${o.values.map(v => `
+        <button class="sku-chip ${skuState[gi] === v ? 'on' : ''}" data-g="${gi}" data-v="${v}">${v}</button>`).join('')}</div>
+    </div>`).join('');
+}
+renderSku();
+document.getElementById('skuGroups').addEventListener('click', e => {
+  const c = e.target.closest('.sku-chip'); if (!c) return;
+  skuState[+c.dataset.g] = c.dataset.v; renderSku();
+});
+
+/* 数量 */
+let qty = 1;
+document.getElementById('qtyMinus').onclick = () => { if (qty > 1) qty--; document.getElementById('qtyNum').textContent = qty; };
+document.getElementById('qtyPlus').onclick = () => { qty++; document.getElementById('qtyNum').textContent = qty; };
+
+/* 评价区 */
+document.getElementById('rvSum').innerHTML = `
+  <span class="rv-num">${p.rating}</span>
+  <span class="rv-star">★★★★★</span>
+  <span class="rv-cnt">${fmtSales(p.reviewsN)}条评价 · 好评率${Math.round(p.rating * 20)}%</span>`;
+const tagPool = ['孩子爱玩', '无异味', '做工好', '安全放心', '性价比高'];
+document.getElementById('rvTags').innerHTML = tagPool.map(t => `<span class="chip" style="cursor:default">${t} ${100 + (p.reviewsN / 10 | 0) % 900}</span>`).join('');
+document.getElementById('rvList').innerHTML = (p.reviewList || []).map(r => `
+  <div class="rv-item">
+    <div class="rv-user"><span class="rv-ava">👶</span>${r.u}<i style="margin-left:auto;color:var(--yellow);font-size:11px">${'★'.repeat(r.star)}</i></div>
+    <div class="rv-text">${r.c}</div>
+    <div class="rv-tags">${r.tags.map(t => `<span class="tag tag-new">${t}</span>`).join('')}</div>
+  </div>`).join('');
+
+/* 规格参数 */
+document.getElementById('paramTable').innerHTML = [
+  ['适用年龄', p.age], ['材质', p.material], ['认证', p.cert],
+  ['产地', p.origin], ['品类', p.cat], ['保修', '非人为损坏 30 天免费换新']
+].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+
+/* 图文详情 */
+document.getElementById('dDesc').textContent = p.desc;
+document.getElementById('dDescImg').src = p.img;
+
+/* 看了又看：同品类优先，补同年龄 */
+const rec = DB.products.filter(x => x.id !== p.id && x.cat === p.cat)
+  .concat(DB.products.filter(x => x.id !== p.id && x.age === p.age && x.cat !== p.cat))
+  .slice(0, 6);
+document.getElementById('recBox').innerHTML = rec.map(cardHtml).join('');
+
+/* 收藏（演示：仅按钮态切换） */
+document.getElementById('favBtn').addEventListener('click', function () {
+  const on = this.classList.toggle('faved');
+  document.getElementById('favIco').textContent = on ? '❤️' : '🤍';
+  toast(on ? '已收藏 ❤️' : '已取消收藏');
+});
+
+/* 加入购物车 / 立即购买 */
+document.getElementById('addCartBtn').addEventListener('click', function () {
+  if (p.stock <= 0) return toast('补货中，先看看别的吧');
+  cartAdd(p.id, skuText(), qty);
+  flyToCart(p.img, this);
+  toast('已加入购物车 🧸');
+});
+document.getElementById('buyNowBtn').addEventListener('click', function () {
+  if (p.stock <= 0) return toast('补货中，先看看别的吧');
+  cartAdd(p.id, skuText(), qty);
+  location.href = 'checkout.html?from=buy';
+});
+</script>
+</body>
+</html>
