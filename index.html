@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>陶元的玩具商城 · 首页</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page">
+
+    <!-- 顶部：吉祥物 + 只读搜索条（热词轮播，照抄华为「点击进搜索页」交互） -->
+    <header class="navbar">
+      <div class="nav-title"><span class="nav-mascot">🧸</span>陶元的玩具商城</div>
+      <a class="search-pill" href="search.html" style="margin-left:auto;max-width:62%;">
+        <span class="sp-icon">🔍</span>
+        <span class="hot-rotate" id="hotRotate"></span>
+        <span class="sp-btn">搜索</span>
+      </a>
+    </header>
+
+    <!-- 楼层容器：全部楼层由 DB.floors 配置驱动渲染（楼层化 CMS 架构） -->
+    <main id="floors"></main>
+
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+/* ============ 楼层渲染器：一个 type 对应一种楼层组件 ============
+   改 DB.floors 的顺序/内容就能「大促换装」，前端零代码改动 ——
+   这就是逆向报告里最值得借鉴的「楼层化 CMS」架构 */
+const floorRenderers = {
+
+  banner(f) {
+    return `<section class="floor floor-in">
+      <div class="banner-scroll" id="bannerScroll">
+        ${DB.banners.map(b => `
+          <a class="banner-card" href="${b.link}">
+            <img src="${b.img}" alt="${b.title}">
+            <div class="banner-info"><b>${b.title}</b><i>${b.sub}</i></div>
+          </a>`).join('')}
+      </div>
+      <div class="dots" id="bannerDots">${DB.banners.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>
+    </section>`;
+  },
+
+  kingkong(f) {
+    return `<section class="floor floor-in">
+      <div class="kk-grid">
+        ${DB.kingkong.map(k => `<a class="kk-item" href="${k.link}">
+          <span class="kk-icon" style="background:${k.bg}">${k.icon}</span>
+          <span class="kk-label">${k.label}</span>
+        </a>`).join('')}
+      </div>
+    </section>`;
+  },
+
+  seckill(f) {
+    const items = DB.seckill.items.map(s => {
+      const p = findProduct(s.pid);
+      return { p, price: s.price, sold: s.sold };
+    });
+    return `<section class="floor floor-in" id="seckill">
+      <div class="floor-head">
+        <span class="floor-title">⚡ 限时秒杀</span>
+        <span class="sk-timer" style="margin-left:auto"><span id="skTimer"></span></span>
+      </div>
+      <div class="seckill-card">
+        <div class="sk-scroll">
+          ${items.map(it => `
+            <a class="sk-item" href="detail.html?pid=${it.p.id}">
+              <img class="skp-img" src="${it.p.img}" alt="${it.p.name}" loading="lazy">
+              <div class="skp-name">${it.p.name}</div>
+              <div><span class="skp-price"><em>¥</em>${fmtMoney(it.price)}</span><span class="skp-line">¥${fmtMoney(it.p.price)}</span></div>
+              <div class="sk-progress"><i style="width:${it.sold}%"></i></div>
+              <div class="sk-sold">已抢${it.sold}%</div>
+            </a>`).join('')}
+        </div>
+      </div>
+    </section>`;
+  },
+
+  couponStrip(f) {
+    return `<section class="floor floor-in">
+      <a class="coupon-strip" href="${f.link}">
+        <div>
+          <div class="cs-main">🎁 ${f.title}</div>
+          <div class="cs-sub">${f.sub}</div>
+        </div>
+        <span class="cs-btn">去领取</span>
+      </a>
+    </section>`;
+  },
+
+  productRow(f) {
+    return `<section class="floor floor-in">
+      <div class="floor-head"><span class="floor-title">${f.title}</span></div>
+      <div class="hscroll">${f.ids.map(id => cardHtml(findProduct(id))).join('')}</div>
+    </section>`;
+  },
+
+  productGrid(f) {
+    return `<section class="floor floor-in">
+      <div class="floor-head"><span class="floor-title">${f.title}</span><a class="floor-more" href="list.html">全部 ›</a></div>
+      <div class="cards2">${f.ids.map(id => cardHtml(findProduct(id))).join('')}</div>
+    </section>`;
+  },
+
+  content(f) {
+    return `<section class="floor floor-in">
+      <div class="floor-head"><span class="floor-title">📖 宝爸宝妈都在看</span></div>
+      <div class="art-scroll">
+        ${DB.articles.map(a => `
+          <div class="art-card">
+            <img src="${a.img}" alt="${a.title}" loading="lazy">
+            <div class="art-body">
+              <div class="art-title">${a.title}</div>
+              <span class="art-tag"># ${a.tag}</span>
+            </div>
+          </div>`).join('')}
+      </div>
+    </section>`;
+  },
+
+  footer(f) {
+    return `<section class="floor floor-in">
+      <div class="home-footer">
+        <span class="hf-bear">🧸</span>
+        陶元的玩具商城 · 演示版<br>3C认证 · 满48包邮 · 7天无理由 · 100积分抵1元
+      </div>
+    </section>`;
+  }
+};
+
+/* 依次渲染楼层 */
+document.getElementById('floors').innerHTML = DB.floors.map(f => (floorRenderers[f.type] || function () { return ''; })(f)).join('');
+
+/* 搜索条热词轮播（运营热词，取 DB.hotWords 前3个） */
+document.getElementById('hotRotate').innerHTML =
+  DB.hotWords.slice(0, 3).map(w => `<span>${w}</span>`).join('');
+
+/* Banner 圆点同步 + 秒杀倒计时 */
+bindDots(document.getElementById('bannerScroll'), document.getElementById('bannerDots'));
+startCountdown(document.getElementById('skTimer'), DB.seckill.endTimeOffset);
+
+renderTabbar('home');
+</script>
+</body>
+</html>
