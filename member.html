@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page">
+
+    <!-- 会员卡：双身份模型 —— 微信匿名逛（游客）→ 一键注册成会员（积分/券钩子） -->
+    <div style="padding-top:14px">
+      <div class="member-hero" id="memberHero"></div>
+    </div>
+
+    <!-- 权益速览 -->
+    <div class="floor">
+      <div class="rights-strip">
+        <div class="right-chip"><b>🧾</b>购物返10%积分</div>
+        <div class="right-chip"><b>🚚</b>满48元包邮</div>
+        <div class="right-chip"><b>⚡</b>优质会员极速退款</div>
+        <div class="right-chip"><b>🎫</b>积分抵现兑换</div>
+      </div>
+    </div>
+
+    <!-- 订单入口 -->
+    <div class="floor">
+      <div class="floor-head"><span class="floor-title">📦 我的订单</span></div>
+      <div class="menu-grid" id="orderMenu"></div>
+    </div>
+
+    <!-- 可领优惠券 -->
+    <div class="floor">
+      <div class="floor-head"><span class="floor-title">🎫 领券中心</span><span class="floor-sub">注册会员专享</span></div>
+      <div id="claimBox"></div>
+    </div>
+
+    <!-- 服务菜单 -->
+    <div class="floor">
+      <div class="panel" style="margin:0;padding:4px 16px">
+        <a class="menu-cell" href="cart.html"><span class="mc-ico">🛒</span>购物车<span class="mc-arrow">›</span></a>
+        <a class="menu-cell" href="#" onclick="toast('演示版：地址管理请脑补');return false"><span class="mc-ico">📍</span>收货地址<span class="mc-arrow">›</span></a>
+        <a class="menu-cell" href="#" onclick="toast('演示版：客服小陶马上来 🎧');return false"><span class="mc-ico">🎧</span>联系客服（7×24）<span class="mc-arrow">›</span></a>
+        <a class="menu-cell" href="#" onclick="toast('演示版：旧玩具可换商城优惠券 ♻️');return false"><span class="mc-ico">♻️</span>旧玩具回收<span class="mc-arrow">›</span></a>
+        <a class="menu-cell" href="index.html"><span class="mc-ico">🏠</span>回首页<span class="mc-arrow">›</span></a>
+      </div>
+      <div class="home-footer">陶元的玩具商城 · 演示版 v1.0<br>致敬「楼层化 CMS + 服务即营销」的电商设计</div>
+    </div>
+
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+const ORDER_MENU = [
+  { st: '待付款', icon: '💳' }, { st: '待发货', icon: '📦' },
+  { st: '待收货', icon: '🚚' }, { st: '已完成', icon: '✅' }
+];
+
+function renderMember() {
+  const u = userGet();
+  const hero = document.getElementById('memberHero');
+
+  if (!u) {
+    hero.innerHTML = `
+      <div class="mh-top"><span class="mh-ava">🧸</span>
+        <div><div class="mh-name"> hi，我是陶陶</div><span class="mh-level">游客身份 · 先逛逛</span></div></div>
+      <button type="button" class="mh-login-btn" id="regBtn">📱 一键注册 · 送500积分+20元新人券</button>
+      <div style="font-size:10.5px;margin-top:8px;opacity:.85">演示版：不收集任何信息，点击即完成注册</div>`;
+  } else {
+    const usable = (u.coupons || []).filter(c => !c.used).length;
+    hero.innerHTML = `
+      <div class="mh-top"><span class="mh-ava">🧸</span>
+        <div><div class="mh-name">${u.name}</div><span class="mh-level">${levelOf(u.totalSpent || 0)}</span></div></div>
+      <div class="mh-stats">
+        <div class="mh-stat"><b>${u.points || 0}</b><i>积分（100抵1元）</i></div>
+        <div class="mh-stat"><b>${usable}</b><i>可用优惠券</i></div>
+        <div class="mh-stat"><b>¥${fmtMoney(u.totalSpent || 0)}</b><i>累计消费</i></div>
+      </div>`;
+  }
+
+  document.getElementById('orderMenu').innerHTML = ORDER_MENU.map(m => {
+    const n = ordersAll().filter(o => o.status === m.st).length;
+    return `<a class="mg-item" href="orders.html">
+      <span class="mg-icon">${m.icon}</span><span class="mg-label">${m.st}</span>
+      ${n ? `<span class="tab-badge show" style="top:-6px;right:6px">${n}</span>` : ''}</a>`;
+  }).join('');
+
+  /* 领券中心：未领取的模板券 */
+  const owned = new Set(userCoupons().map(c => c.cid));
+  const canClaim = DB.coupons.filter(c => !owned.has(c.id));
+  document.getElementById('claimBox').innerHTML = canClaim.length ? canClaim.map(c => `
+    <div class="coupon-card" data-claim="${c.id}" style="cursor:pointer">
+      <div class="coupon-off"><b>${c.rate ? '8.8' : c.off}<em>${c.rate ? '折' : '元'}</em></b><i>满${c.min || 0}可用</i></div>
+      <div class="coupon-info"><b>${c.name}</b><i>${c.note}</i></div>
+      <button class="btn btn-primary btn-mini" style="margin-left:auto">领取</button>
+    </div>`).join('') :
+    `<div style="text-align:center;color:var(--ink-3);font-size:12px;padding:8px 0">都领到啦，去下单用掉吧 🎉</div>`;
+}
+
+/* 一键注册（演示） */
+document.addEventListener('click', e => {
+  if (e.target.closest('#regBtn')) {
+    userRegister();
+    toast('注册成功！500积分+新人券已到账 🎉');
+    renderMember();
+    return;
+  }
+  const claim = e.target.closest('[data-claim]');
+  if (claim) {
+    if (!isMember()) { toast('先注册会员才能领券哦 🧸'); return; }
+    const u = userGet();
+    u.coupons.push({ cid: claim.dataset.claim, used: false });
+    userSave(u);
+    toast('领取成功 🎫');
+    renderMember();
+  }
+});
+
+renderMember();
+renderTabbar('me');
+</script>
+</body>
+</html>
