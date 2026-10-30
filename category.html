@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>分类 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page">
+
+    <header class="navbar">
+      <div class="nav-title"><span class="nav-mascot">🗂️</span>分类</div>
+      <a class="search-pill" href="search.html" style="max-width:52%;">
+        <span class="sp-icon">🔍</span><span style="color:var(--ink-3)">搜玩具</span>
+      </a>
+    </header>
+
+    <!-- 分组切换：按品类 / 按年龄（玩具电商特有的双维导航） -->
+    <div class="cat-seg">
+      <button class="seg-btn on" data-group="byCat">按品类</button>
+      <button class="seg-btn" data-group="byAge">按年龄</button>
+    </div>
+
+    <div class="cat-body">
+      <div class="cat-side" id="catSide"></div>
+      <div class="cat-main" id="catMain"></div>
+    </div>
+
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+const CAT_COLORS = { byCat: ['var(--peach-soft)', 'var(--blue-soft)', 'var(--pink-soft)', 'var(--green-soft)', 'var(--yellow-soft)', 'var(--purple-soft)'], byAge: ['var(--yellow-soft)', 'var(--blue-soft)', 'var(--pink-soft)'] };
+let curGroup = 'byCat';
+let curIdx = 0;
+
+function renderCat() {
+  const list = DB.categories[curGroup];
+  const item = list[Math.min(curIdx, list.length - 1)];
+
+  document.getElementById('catSide').innerHTML = list.map((c, i) => `
+    <button class="cat-side-item ${i === curIdx ? 'on' : ''}" data-idx="${i}">${c.name}</button>`).join('');
+
+  const color = CAT_COLORS[curGroup][curIdx % CAT_COLORS[curGroup].length];
+  const count = curGroup === 'byCat'
+    ? DB.products.filter(p => p.cat === item.name).length
+    : DB.products.filter(p => p.age === item.name).length;
+
+  document.getElementById('catMain').innerHTML = `
+    <div class="cat-hero" style="background:${color}">
+      <span class="ch-icon">${item.icon}</span>
+      <div><b>${item.name}</b><i>${item.desc} · 共 ${count} 件好物</i></div>
+    </div>
+    <div class="cat-grid">
+      ${list.map((c, i) => {
+        const n = curGroup === 'byCat'
+          ? DB.products.filter(p => p.cat === c.name).length
+          : DB.products.filter(p => p.age === c.name).length;
+        const param = curGroup === 'byCat' ? 'cat' : 'age';
+        return `<a class="cat-card" href="list.html?${param}=${encodeURIComponent(c.name)}">
+          <span class="cc-icon">${c.icon}</span>
+          <b>${c.name}</b>
+          <i>${c.desc}</i>
+          <span class="cc-count">${n} 件 ›</span>
+        </a>`;
+      }).join('')}
+    </div>
+    <div class="floor-head"><span class="floor-title">${item.name} · 热门推荐</span></div>
+    <div class="cards2">
+      ${(curGroup === 'byCat'
+        ? DB.products.filter(p => p.cat === item.name)
+        : DB.products.filter(p => p.age === item.name)).slice(0, 4).map(cardHtml).join('')}
+    </div>`;
+}
+
+document.addEventListener('click', e => {
+  const seg = e.target.closest('.seg-btn');
+  if (seg) {
+    curGroup = seg.dataset.group; curIdx = 0;
+    document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('on', b === seg));
+    renderCat();
+  }
+  const side = e.target.closest('.cat-side-item');
+  if (side) { curIdx = +side.dataset.idx; renderCat(); }
+});
+
+/* 支持 list 页过来的定位：category.html?group=byAge&idx=1 */
+const g = qs('group'); if (g === 'byAge' || g === 'byCat') { curGroup = g; document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('on', b.dataset.group === g)); }
+curIdx = parseInt(qs('idx')) || 0;
+renderCat();
+renderTabbar('cat');
+</script>
+</body>
+</html>
