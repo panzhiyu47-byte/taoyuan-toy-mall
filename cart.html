@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>购物车 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page" style="padding-bottom:120px">
+
+    <header class="navbar">
+      <div class="nav-title"><span class="nav-mascot">🛒</span>购物车</div>
+      <a class="nav-side" href="member.html" style="font-size:12px;color:var(--ink-2)">我的订单</a>
+    </header>
+
+    <div class="bar-under-nav"><div class="notice" id="couNotice">🧸 满48元包邮，100积分抵1元</div></div>
+
+    <div id="cartBox"></div>
+
+  </div>
+
+  <!-- 结算条 -->
+  <div class="cart-sumbar" id="sumbar" style="display:none">
+    <button class="cs-all" id="allBtn"><span class="ci-check" id="allCheck">✓</span>全选</button>
+    <div class="cs-total">
+      <div>合计 <span class="price" id="sumTotal"><em>¥</em>0</span></div>
+      <div class="cs-tip" id="sumTip"></div>
+    </div>
+    <button class="btn btn-primary" id="goCheckout" style="padding:11px 26px">去结算(<span id="cntSel">0</span>)</button>
+  </div>
+
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+function renderCart() {
+  const list = cartAll();
+  const box = document.getElementById('cartBox');
+
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><span class="e-bear">🧸</span>
+      <p>购物车空空的<br>陶陶等你带好玩的回家</p>
+      <a class="btn btn-primary" href="index.html">去逛逛</a></div>`;
+    document.getElementById('sumbar').style.display = 'none';
+    return;
+  }
+
+  box.innerHTML = list.map(i => {
+    const p = findProduct(i.pid); if (!p) return '';
+    return `<div class="cart-item">
+      <button class="ci-check ${i.selected ? 'on' : ''}" data-sel="${i.key}">✓</button>
+      <a href="detail.html?pid=${p.id}"><img class="ci-img" src="${p.img}" alt="${p.name}"></a>
+      <div class="ci-body">
+        <div class="ci-name">${p.name}</div>
+        <div class="ci-sku">${i.sku}</div>
+        <div class="ci-foot">
+          <span class="price"><em>¥</em>${fmtMoney(p.price)}</span>
+          <div class="stepper" style="margin-left:auto">
+            <button data-minus="${i.key}">−</button><span class="st-num">${i.qty}</span><button data-plus="${i.key}">+</button>
+          </div>
+        </div>
+      </div>
+      <button style="color:var(--ink-3);font-size:15px;flex:0 0 22px" data-del="${i.key}" aria-label="删除">✕</button>
+    </div>`;
+  }).join('');
+
+  /* 合计条 */
+  const sel = cartSelectedItems();
+  const total = sel.reduce((s, i) => { const p = findProduct(i.pid); return s + (p ? p.price * i.qty : 0); }, 0);
+  const cnt = sel.reduce((s, i) => s + i.qty, 0);
+  document.getElementById('sumbar').style.display = 'flex';
+  document.getElementById('sumTotal').innerHTML = `<em>¥</em>${fmtMoney(total)}`;
+  document.getElementById('cntSel').textContent = cnt;
+  document.getElementById('allCheck').classList.toggle('on', sel.length === list.length);
+
+  /* 凑单提示（照抄华为「差多少凑单」）：找门槛最近且差额最小的可领券 */
+  let tip = total >= 48 ? '' : `还差¥${fmtMoney(48 - total)}包邮`;
+  let best = null;
+  DB.coupons.forEach(c => {
+    if (!c.min || c.rate) return;
+    const gap = c.min - total;
+    if (gap > 0 && (!best || gap < best.gap)) best = { gap, c };
+  });
+  if (best && !tip) tip = `再买¥${fmtMoney(best.gap)}可用「${best.c.name}」`;
+  else if (best && tip) tip += ` · 再买¥${fmtMoney(best.gap)}可用「${best.c.name}」`;
+  document.getElementById('sumTip').textContent = tip;
+}
+
+/* 事件委托 */
+document.addEventListener('click', e => {
+  const sel = e.target.closest('[data-sel]');
+  if (sel) { cartSetSelected(sel.dataset.sel, !sel.classList.contains('on')); renderCart(); return; }
+  if (e.target.id === 'allBtn' || e.target.closest('#allBtn')) {
+    cartSelectAll(!document.getElementById('allCheck').classList.contains('on')); renderCart(); return;
+  }
+  const minus = e.target.closest('[data-minus]');
+  if (minus) { const it = cartAll().find(i => i.key === minus.dataset.minus); if (it) { cartSetQty(it.key, it.qty - 1); renderCart(); } return; }
+  const plus = e.target.closest('[data-plus]');
+  if (plus) { const it = cartAll().find(i => i.key === plus.dataset.plus); if (it) { cartSetQty(it.key, it.qty + 1); renderCart(); } return; }
+  const del = e.target.closest('[data-del]');
+  if (del) { cartRemove(del.dataset.del); toast('已移出购物车'); renderCart(); }
+});
+
+document.getElementById('goCheckout').addEventListener('click', () => {
+  if (!cartSelectedItems().length) return toast('先勾选想买的玩具吧');
+  location.href = 'checkout.html';
+});
+
+renderCart();
+renderTabbar('cart');
+</script>
+</body>
+</html>
