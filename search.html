@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>搜索 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page no-tab" style="padding-bottom:30px">
+
+    <header class="navbar">
+      <button class="nav-back" onclick="history.back()">←</button>
+      <div class="search-input-bar" style="flex:1;padding:0">
+        <input class="sib-input" id="searchInput" placeholder="搜一搜宝宝想要的玩具" autocomplete="off">
+        <button class="sib-btn" id="searchBtn">搜索</button>
+      </div>
+    </header>
+
+    <!-- 默认态：热词运营 + 搜索历史 -->
+    <div class="floor" id="defaultView">
+      <div class="sec-label">🔥 运营热词（可配置）</div>
+      <div class="word-cloud" id="hotCloud"></div>
+      <div class="sec-label" id="hisLabel" style="display:none">🕘 搜索历史 <button class="sl-act" id="clearHis">清空</button></div>
+      <div class="word-cloud" id="hisCloud"></div>
+    </div>
+
+    <!-- 结果态 -->
+    <div id="resultView" style="display:none">
+      <div style="padding:4px 14px 10px;font-size:11px;color:var(--ink-3)" id="resultMeta"></div>
+      <div style="padding:0 14px"><div class="cards2" id="resultBox"></div></div>
+      <!-- 无结果兜底：推荐热卖（照抄「无结果推荐」） -->
+      <div id="fallback" style="display:none">
+        <div class="floor-head"><span class="floor-title">没找到？看看热卖榜</span></div>
+        <div style="padding:0 14px"><div class="cards2" id="fbBox"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+const input = document.getElementById('searchInput');
+const HOT_ICON = ['🥇', '🥈', '🥉'];
+
+/* 热词（前3带奖牌，模拟运营热度） */
+document.getElementById('hotCloud').innerHTML = DB.hotWords.map((w, i) =>
+  `<button class="wc-chip ${i < 3 ? 'hot' : ''}" data-w="${w}">${i < 3 ? HOT_ICON[i] + ' ' : ''}${w}</button>`).join('');
+
+function renderHistory() {
+  const his = store.get('ty_history', []);
+  document.getElementById('hisLabel').style.display = his.length ? 'flex' : 'none';
+  document.getElementById('hisCloud').innerHTML = his.map(w => `<button class="wc-chip" data-w="${w}">${w}</button>`).join('');
+}
+renderHistory();
+
+document.getElementById('clearHis').addEventListener('click', () => { store.set('ty_history', []); renderHistory(); });
+
+function saveHistory(w) {
+  let his = store.get('ty_history', []).filter(x => x !== w);
+  his.unshift(w);
+  store.set('ty_history', his.slice(0, 8));
+}
+
+function doSearch(w) {
+  w = (w || '').trim();
+  if (!w) { toast('想找什么玩具呀？'); return; }
+  saveHistory(w); renderHistory();
+  const arr = DB.products.filter(p => (p.name + p.point + p.cat + p.age).includes(w));
+  document.getElementById('defaultView').style.display = 'none';
+  document.getElementById('resultView').style.display = 'block';
+  document.getElementById('resultMeta').textContent = `「${w}」找到 ${arr.length} 件好物`;
+  document.getElementById('resultBox').innerHTML = arr.map(cardHtml).join('');
+  const fb = document.getElementById('fallback');
+  fb.style.display = arr.length ? 'none' : 'block';
+  if (!arr.length) {
+    document.getElementById('fbBox').innerHTML =
+      DB.products.slice().sort((a, b) => b.sales - a.sales).slice(0, 4).map(cardHtml).join('');
+  }
+}
+
+document.getElementById('searchBtn').addEventListener('click', () => doSearch(input.value));
+input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(input.value); });
+/* 输入联想：名称匹配提示 */
+const dl = document.createElement('datalist'); dl.id = 'sugList';
+dl.innerHTML = DB.products.map(p => `<option value="${p.name}"></option>`).join('');
+document.body.appendChild(dl);
+input.setAttribute('list', 'sugList');
+
+document.addEventListener('click', e => {
+  const chip = e.target.closest('[data-w]');
+  if (chip) { input.value = chip.dataset.w; doSearch(chip.dataset.w); }
+});
+
+/* 支持 list/search 跳入即搜 */
+if (qs('q')) { input.value = qs('q'); doSearch(qs('q')); } else { input.focus(); }
+</script>
+</body>
+</html>
