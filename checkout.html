@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>确认订单 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page no-tab" style="padding-bottom:110px">
+
+    <header class="navbar">
+      <button class="nav-back" onclick="history.back()">←</button>
+      <div class="nav-title" style="font-size:17px">确认订单</div>
+    </header>
+
+    <div id="checkoutMain">
+      <div class="panel addr-card">
+        <span class="addr-ico">📍</span>
+        <div class="addr-text" id="addrBox"></div>
+      </div>
+
+      <div class="panel" id="itemBox"></div>
+
+      <div class="panel">
+        <div class="cell" id="couponCell" style="cursor:pointer">
+          <span class="c-label">🎫 优惠券</span>
+          <span class="c-val" id="couponVal">选择 <span class="c-arrow">›</span></span>
+        </div>
+        <div class="cell">
+          <span class="c-label">🧸 积分抵现 <i id="ptsHint" style="font-style:normal;color:var(--ink-3);font-size:10.5px"></i></span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px" id="ptsWrap">
+            <span id="ptsOff" style="font-size:12px;color:var(--green);font-weight:700"></span>
+            <button class="switch" id="ptsSwitch"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="sum-line"><span>商品金额</span><b>¥<span id="sGoods">0</span></b></div>
+        <div class="sum-line"><span>优惠券</span><b id="sCoupon">-¥0</b></div>
+        <div class="sum-line"><span>积分抵现</span><b id="sPoints">-¥0</b></div>
+        <div class="sum-line"><span>运费（满48包邮）</span><b id="sFreight">¥0</b></div>
+        <div class="sum-line hl"><span>实付款</span><b>¥<span id="sTotal">0</span></b></div>
+      </div>
+    </div>
+
+    <!-- 支付成功态 -->
+    <div id="successView" style="display:none">
+      <div class="success-wrap">
+        <div class="success-ico">🎉</div>
+        <div class="success-title">下单成功！</div>
+        <div class="success-sub" id="successSub"></div>
+        <div class="success-pts" id="successPts"></div>
+        <div style="display:flex;gap:10px;margin-top:26px">
+          <a class="btn btn-ghost" style="flex:1" href="orders.html">查看订单</a>
+          <a class="btn btn-primary" style="flex:1" href="index.html">继续逛逛</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提交条 -->
+  <div class="cart-sumbar" id="submitBar">
+    <div class="cs-total" style="margin-left:auto">
+      <div>实付款 <span class="price" id="barTotal"><em>¥</em>0</span></div>
+    </div>
+    <button class="btn btn-primary" id="submitBtn" style="padding:11px 30px">提交订单</button>
+  </div>
+
+  <!-- 弹层：选券 / 支付 -->
+  <div class="mask" id="mask"></div>
+  <div class="sheet" id="couponSheet">
+    <div class="sheet-title">选择优惠券</div>
+    <div id="couponList"></div>
+    <button class="btn btn-soft btn-block" id="noCoupon" style="margin-top:6px">不使用优惠券</button>
+  </div>
+  <div class="sheet" id="paySheet">
+    <div class="sheet-title">收银台（演示）</div>
+    <div class="pay-amount"><span class="price"><em>¥</em><span id="payAmount">0</span></span></div>
+    <div class="pay-method"><span class="pm-ico">💚</span><div>微信支付<span class="pm-sub">演示环境不会真实扣款</span></div><span style="margin-left:auto;color:var(--green);font-weight:800">✓</span></div>
+    <button class="btn btn-primary btn-block" id="payBtn" style="margin-top:16px">立即支付</button>
+  </div>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+/* 结算数据源：购物车中勾选的商品 */
+let items = cartSelectedItems().map(i => {
+  const p = findProduct(i.pid);
+  return p ? { pid: i.pid, name: p.name, img: p.img, sku: i.sku, price: p.price, qty: i.qty } : null;
+}).filter(Boolean);
+
+let couponId = null, usePoints = false, paidOrder = null;
+const u = userGet();
+
+if (!items.length) {
+  document.getElementById('checkoutMain').innerHTML = `
+    <div class="empty"><span class="e-bear">🧸</span><p>没有待结算的玩具<br>先去挑两件吧</p>
+    <a class="btn btn-primary" href="index.html">去逛逛</a></div>`;
+  document.getElementById('submitBar').style.display = 'none';
+} else {
+  document.getElementById('addrBox').innerHTML = (() => {
+    const a = (u && u.addresses && u.addresses[0]) || DB.defaultAddress;
+    return `<b>${a.name}</b><i>${a.phone}</i><p>${a.text}</p>`;
+  })();
+
+  document.getElementById('itemBox').innerHTML = items.map(it => `
+    <div class="oc-item">
+      <img src="${it.img}" alt="${it.name}">
+      <div style="flex:1;min-width:0">
+        <div class="oci-name">${it.name}</div>
+        <div class="oci-sku">${it.sku} × ${it.qty}</div>
+      </div>
+      <div class="oci-price"><div class="price" style="font-size:15px"><em>¥</em>${fmtMoney(it.price * it.qty)}</div></div>
+    </div>`).join('');
+}
+
+function memberCoupons() {
+  /* 已领取且未用的券；未注册/未领券提示引导 */
+  return userCoupons().filter(c => !c.used).map(c => couponById(c.cid)).filter(Boolean);
+}
+function renderCouponVal() {
+  const c = couponId ? couponById(couponId) : null;
+  document.getElementById('couponVal').innerHTML = c
+    ? `<span style="color:var(--danger)">-¥${fmtMoney(couponDiscount(c, items))} ${c.name}</span> <span class="c-arrow">›</span>`
+    : (memberCoupons().length ? `${memberCoupons().length} 张可用 <span class="c-arrow">›</span>` : `<span style="color:var(--ink-3)">暂无可用 <span class="c-arrow">›</span></span>`);
+}
+function renderSheet() {
+  const cs = memberCoupons();
+  document.getElementById('couponList').innerHTML = cs.length ? cs.map(c => {
+    const ok = couponDiscount(c, items) > 0;
+    return `<div class="coupon-card ${couponId === c.id ? 'on' : ''} ${ok ? '' : 'disabled'}" data-cid="${c.id}">
+      <div class="coupon-off"><b>${c.rate ? '8.8' : c.off}<em>${c.rate ? '折' : '元'}</em></b><i>满${c.min || 0}可用</i></div>
+      <div class="coupon-info"><b>${c.name}</b><i>${c.note}</i></div>
+      <span class="coupon-pick"></span>
+    </div>`;
+  }).join('') + (u ? '' : `<div style="text-align:center;font-size:11.5px;color:var(--ink-3);padding:6px 0 2px">没有券？<a href="member.html" style="color:var(--peach);font-weight:700">注册会员领新人礼 →</a></div>`
+  ) : `<div style="text-align:center;padding:20px 0;color:var(--ink-3);font-size:12.5px">
+        ${u ? '还没领券，去「我的-宝妈领券」逛逛' : '<a href="member.html" style="color:var(--peach);font-weight:700">注册会员领 20 元新人券 →</a>'}
+      </div>`;
+}
+
+function renderTotals() {
+  const t = calcTotals(items, couponId ? couponById(couponId) : null, usePoints);
+  document.getElementById('sGoods').textContent = fmtMoney(t.goodsTotal);
+  document.getElementById('sCoupon').textContent = '-¥' + fmtMoney(t.couponOff);
+  document.getElementById('sPoints').textContent = '-¥' + fmtMoney(t.pointsOff);
+  document.getElementById('sFreight').textContent = t.freight ? '¥' + t.freight : '免运费';
+  document.getElementById('sTotal').textContent = fmtMoney(t.total);
+  document.getElementById('barTotal').innerHTML = `<em>¥</em>${fmtMoney(t.total)}`;
+  /* 积分行 */
+  const maxPts = Math.min(u ? u.points || 0 : 0, Math.floor(Math.max(0, t.goodsTotal - t.couponOff) / 2) * 100);
+  document.getElementById('ptsHint').textContent = u ? `可用${u.points}积分 · 100抵1 · 最多抵${Math.floor(maxPts / 100)}元` : '注册会员专享';
+  document.getElementById('ptsWrap').style.opacity = u ? 1 : .45;
+  document.getElementById('ptsOff').textContent = usePoints && t.pointsOff ? `-¥${fmtMoney(t.pointsOff)}` : '';
+  renderCouponVal();
+  return t;
+}
+
+/* 弹层交互 */
+const mask = document.getElementById('mask');
+function openSheet(id) { mask.classList.add('show'); document.getElementById(id).classList.add('show'); }
+function closeSheets() { mask.classList.remove('show'); document.querySelectorAll('.sheet').forEach(s => s.classList.remove('show')); }
+mask.addEventListener('click', closeSheets);
+
+document.getElementById('couponCell').addEventListener('click', () => { renderSheet(); openSheet('couponSheet'); });
+document.getElementById('couponList').addEventListener('click', e => {
+  const card = e.target.closest('.coupon-card'); if (!card || card.classList.contains('disabled')) return;
+  couponId = couponId === card.dataset.cid ? null : card.dataset.cid;
+  renderSheet(); renderTotals();
+});
+document.getElementById('noCoupon').addEventListener('click', () => { couponId = null; renderSheet(); renderTotals(); closeSheets(); });
+
+const ptsSwitch = document.getElementById('ptsSwitch');
+ptsSwitch.addEventListener('click', () => {
+  if (!u) { toast('注册会员才能用积分抵现哦'); return; }
+  usePoints = !usePoints; ptsSwitch.classList.toggle('on', usePoints); renderTotals();
+});
+
+/* 提交订单 → 收银台 → 支付成功 */
+let pendingOrder = null;
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const t = renderTotals();
+  pendingOrder = createOrder(items.map(it => ({ pid: it.pid, name: it.name, img: it.img, sku: it.sku, price: it.price, qty: it.qty })), {
+    discount: t.couponOff + t.pointsOff, couponId: t.couponOff > 0 ? couponId : null,
+    pointsUsed: t.pointsUsed, address: (u && u.addresses && u.addresses[0]) || DB.defaultAddress
+  });
+  document.getElementById('payAmount').textContent = fmtMoney(pendingOrder.total);
+  openSheet('paySheet');
+});
+document.getElementById('payBtn').addEventListener('click', () => {
+  orderPay(pendingOrder.id);
+  cartClearSelected();
+  const pts = Math.floor(pendingOrder.total * 0.1);
+  closeSheets();
+  document.getElementById('checkoutMain').style.display = 'none';
+  document.getElementById('submitBar').style.display = 'none';
+  const sv = document.getElementById('successView'); sv.style.display = 'block';
+  document.getElementById('successSub').innerHTML = `订单号 ${pendingOrder.id}<br>陶陶已打包好玩具，发货后可在「订单」里看物流`;
+  document.getElementById('successPts').innerHTML = `🧸 本单返 ${pts} 积分 · 100积分抵1元`;
+});
+
+renderTotals();
+</script>
+</body>
+</html>
