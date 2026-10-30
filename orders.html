@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的订单 · 陶元的玩具商城</title>
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link href="https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="page">
+
+    <header class="navbar">
+      <button class="nav-back" onclick="history.back()">←</button>
+      <div class="nav-title" style="font-size:17px">我的订单</div>
+    </header>
+
+    <div class="order-tabs" id="orderTabs">
+      <button class="ot-item on" data-st="全部">全部</button>
+      <button class="ot-item" data-st="待付款">待付款</button>
+      <button class="ot-item" data-st="待发货">待发货</button>
+      <button class="ot-item" data-st="待收货">待收货</button>
+      <button class="ot-item" data-st="已完成">已完成</button>
+    </div>
+
+    <div id="orderBox" style="padding-bottom:14px"></div>
+
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script src="data/db.js"></script>
+<script src="js/app.js"></script>
+<script>
+const ST_CLASS = { '待付款': 'st-pay', '待发货': 'st-ship', '待收货': 'st-take', '已完成': 'st-done' };
+let curSt = '全部';
+
+function renderOrders() {
+  const all = ordersAll().filter(o => curSt === '全部' || o.status === curSt);
+  const box = document.getElementById('orderBox');
+  if (!all.length) {
+    box.innerHTML = `<div class="empty"><span class="e-bear">📦</span>
+      <p>${curSt === '全部' ? '还没有订单<br>陶陶的小推车已就位' : '暂时没有「' + curSt + '」的订单'}</p>
+      <a class="btn btn-primary btn-mini" href="index.html">去逛逛</a></div>`;
+    return;
+  }
+  box.innerHTML = all.map(o => `
+    <div class="order-card">
+      <div class="oc-head"><span>${new Date(o.created).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="oc-status ${ST_CLASS[o.status]}">${o.status}</span></div>
+      ${o.items.map(it => `
+        <div class="oc-item">
+          <img src="${it.img}" alt="${it.name}">
+          <div style="flex:1;min-width:0">
+            <div class="oci-name">${it.name}</div>
+            <div class="oci-sku">${it.sku} × ${it.qty}</div>
+          </div>
+          <div class="oci-price"><div class="price" style="font-size:14px"><em>¥</em>${fmtMoney(it.price * it.qty)}</div></div>
+        </div>`).join('')}
+      <div class="oc-foot">
+        <span class="oc-total">共${o.items.reduce((s, i) => s + i.qty, 0)}件 · 实付 <b>¥${fmtMoney(o.total)}</b>${o.freight ? '（含运费8元）' : ''}</span>
+        <span class="oc-btns">${orderBtns(o)}</span>
+      </div>
+    </div>`).join('');
+}
+function orderBtns(o) {
+  if (o.status === '待付款') return `
+    <button class="btn btn-soft btn-mini" data-cancel="${o.id}">取消订单</button>
+    <button class="btn btn-primary btn-mini" data-pay="${o.id}">去支付</button>`;
+  if (o.status === '待发货') return `<button class="btn btn-soft btn-mini" data-remind="${o.id}">提醒发货</button>`;
+  if (o.status === '待收货') return `
+    <button class="btn btn-soft btn-mini" data-logi="${o.id}">查物流</button>
+    <button class="btn btn-primary btn-mini" data-take="${o.id}">确认收货</button>`;
+  return `<button class="btn btn-soft btn-mini" data-rebuy="${o.id}">再次购买</button>`;
+}
+
+document.getElementById('orderTabs').addEventListener('click', e => {
+  const t = e.target.closest('.ot-item'); if (!t) return;
+  curSt = t.dataset.st;
+  document.querySelectorAll('.ot-item').forEach(b => b.classList.toggle('on', b === t));
+  renderOrders();
+});
+
+document.addEventListener('click', e => {
+  const pay = e.target.closest('[data-pay]');
+  if (pay) { orderPay(pay.dataset.pay); toast('支付成功（演示）'); renderOrders(); updateBadges(); return; }
+  const cancel = e.target.closest('[data-cancel]');
+  if (cancel) { orderUpdate(cancel.dataset.cancel, { status: '已完成', canceled: true }); toast('已取消'); renderOrders(); return; }
+  const take = e.target.closest('[data-take]');
+  if (take) { orderUpdate(take.dataset.take, { status: '已完成' }); toast('交易完成，记得来评价呀'); renderOrders(); return; }
+  const remind = e.target.closest('[data-remind]');
+  if (remind) { toast('陶陶受到催促，正在加紧打包 📦'); return; }
+  const logi = e.target.closest('[data-logi]');
+  if (logi) { toast('演示版：物流详情请脑补一只可爱的小货车 🚚'); return; }
+  const rebuy = e.target.closest('[data-rebuy]');
+  if (rebuy) {
+    const o = ordersAll().find(x => x.id === rebuy.dataset.rebuy);
+    if (o) { o.items.forEach(it => cartAdd(it.pid, it.sku, it.qty)); toast('已重新加入购物车 🛒'); }
+  }
+});
+
+renderOrders();
+renderTabbar('me');
+</script>
+</body>
+</html>
